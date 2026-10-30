@@ -1,0 +1,58 @@
+// хранение послед кодов 
+var lastSentCodes = ["", "", "", ""];
+
+function onResult(decodeResults, readerProperties, output) {
+    // массив этого кадра
+    var rowArray = ["EMPTY", "EMPTY", "EMPTY", "EMPTY"];
+
+    if (decodeResults.length === 0) {
+        output.content = ""; 
+        return;
+    }
+
+    var hasNewData = false;
+
+    for (var i = 0; i < decodeResults.length; i++) {
+        if (decodeResults[i].decoded) {
+            var codeX = decodeResults[i].symbology.center.x;
+            var barcodeText = decodeResults[i].content.replace(/[\x1D\x0D\x0A]/g, "");
+
+            // проверка на дубликаты
+            if (rowArray[0] === barcodeText || rowArray[1] === barcodeText || rowArray[2] === barcodeText || rowArray[3] === barcodeText) {
+                continue; 
+            }
+
+            // распределение по зонам
+            var zoneIndex = 3;
+            if (codeX < 477) {
+                zoneIndex = 0;
+            } else if (codeX >= 477 && codeX < 663) {
+                zoneIndex = 1;
+            } else if (codeX >= 663 && codeX < 844) {
+                zoneIndex = 2;
+            }
+
+            rowArray[zoneIndex] = barcodeText;
+
+            // Сверяем с глобальной памятью: если этот код не совпадаем с тем, что стоял в этой же зоне ранее это новая бутылка
+            if (lastSentCodes[zoneIndex] !== barcodeText) {
+                hasNewData = true;
+            }
+        }
+    }
+
+    // блок после сравнения
+    if (!hasNewData) {
+        output.content = "";
+        return;
+    }
+
+    // Запоминаем текущий результат в глобальную память для следующего кадра
+    lastSentCodes[0] = rowArray[0];
+    lastSentCodes[1] = rowArray[1];
+    lastSentCodes[2] = rowArray[2];
+    lastSentCodes[3] = rowArray[3];
+
+    // формирование вывода
+    output.content = rowArray.join("?") + "\r\n";
+}
